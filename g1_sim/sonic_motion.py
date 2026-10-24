@@ -123,6 +123,32 @@ def load_lafan_csv(csv_path: str | Path, src_fps: float = 30.0, target_fps: floa
         target_fps=target_fps,
     )
 
+def reversed(self) -> "ReferenceMotion":
+    """Time-reversed copy of this clip: playing it walks the motion backward.
+
+    Frame order is flipped and joint velocities are recomputed with the same
+    forward-difference convention as ``make_reference_motion`` (first frame of
+    the reversed clip is the last frame of the original). Root positions
+    reverse too, so the net displacement flips sign: a forward walk becomes a
+    backward walk along the same path. Works on any loaded clip (pickle or
+    LAFAN CSV), so every demo motion gets a backward variant for free.
+    """
+    qpos = np.ascontiguousarray(self.qpos_isaac[::-1])
+    if self.num_frames > 1:
+        dt = 1.0 / self.fps
+        qvel = (qpos[1:] - qpos[:-1]) / dt
+        qvel = np.concatenate([qvel, qvel[-1:]], axis=0)  # same repeat-last convention
+    else:
+        qvel = np.zeros_like(qpos)
+    return ReferenceMotion(
+        name=f"{self.name}_backward",
+        fps=self.fps,
+        qpos_isaac=qpos,
+        qvel_isaac=np.ascontiguousarray(qvel),
+        root_quat=np.ascontiguousarray(self.root_quat[::-1]),
+        root_pos=np.ascontiguousarray(self.root_pos[::-1]),
+    )
+
 
 def load_motions(path: str | Path, target_fps: float = CONTROL_HZ) -> dict[str, ReferenceMotion]:
     """Load any supported motion file (``.pkl`` GEAR-SONIC, ``.csv`` LAFAN) as ``{name: clip}``."""

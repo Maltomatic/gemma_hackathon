@@ -2,3 +2,6 @@ mujoco>=3.3
 numpy
 glfw
 pyyaml
+onnxruntime
+joblib
+huggingface_hub

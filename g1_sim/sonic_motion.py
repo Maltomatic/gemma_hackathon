@@ -103,27 +103,7 @@ def load_reference_motions(pkl_path: str | Path, target_fps: float = CONTROL_HZ)
         for name, clip in raw.items()
     }
 
-
-def load_lafan_csv(csv_path: str | Path, src_fps: float = 30.0, target_fps: float = CONTROL_HZ) -> ReferenceMotion:
-    """Unitree LAFAN1 retargeting CSV: no header, 36 columns per row at 30 fps.
-
-    Columns: root position xyz (3), root quaternion xyzw (4), 29 joint angles in
-    hardware order. Same content as the GEAR-SONIC pickle, different container.
-    """
-    csv_path = Path(csv_path)
-    d = np.loadtxt(csv_path, delimiter=",", dtype=np.float64)
-    if d.ndim != 2 or d.shape[1] != 36:
-        raise ValueError(f"{csv_path}: expected (T, 36) = root pos + quat xyzw + 29 joints, got {d.shape}")
-    return make_reference_motion(
-        name=csv_path.stem,
-        dof_hw=d[:, 7:36],
-        root_quat_wxyz=quat.xyzw_to_wxyz(d[:, 3:7]),
-        root_pos=d[:, 0:3],
-        src_fps=src_fps,
-        target_fps=target_fps,
-    )
-
-def reversed(self) -> "ReferenceMotion":
+def move_reversed(self):
     """Time-reversed copy of this clip: playing it walks the motion backward.
 
     Frame order is flipped and joint velocities are recomputed with the same
@@ -149,6 +129,25 @@ def reversed(self) -> "ReferenceMotion":
         root_pos=np.ascontiguousarray(self.root_pos[::-1]),
     )
 
+
+def load_lafan_csv(csv_path: str | Path, src_fps: float = 30.0, target_fps: float = CONTROL_HZ) -> ReferenceMotion:
+    """Unitree LAFAN1 retargeting CSV: no header, 36 columns per row at 30 fps.
+
+    Columns: root position xyz (3), root quaternion xyzw (4), 29 joint angles in
+    hardware order. Same content as the GEAR-SONIC pickle, different container.
+    """
+    csv_path = Path(csv_path)
+    d = np.loadtxt(csv_path, delimiter=",", dtype=np.float64)
+    if d.ndim != 2 or d.shape[1] != 36:
+        raise ValueError(f"{csv_path}: expected (T, 36) = root pos + quat xyzw + 29 joints, got {d.shape}")
+    return make_reference_motion(
+        name=csv_path.stem,
+        dof_hw=d[:, 7:36],
+        root_quat_wxyz=quat.xyzw_to_wxyz(d[:, 3:7]),
+        root_pos=d[:, 0:3],
+        src_fps=src_fps,
+        target_fps=target_fps,
+    )
 
 def load_motions(path: str | Path, target_fps: float = CONTROL_HZ) -> dict[str, ReferenceMotion]:
     """Load any supported motion file (``.pkl`` GEAR-SONIC, ``.csv`` LAFAN) as ``{name: clip}``."""

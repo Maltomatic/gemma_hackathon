@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 third_party/mujoco_menagerie/
+models/
+*.onnx
+*.pt

@@ -66,15 +66,18 @@ def run_headless(sim: G1Sim, ctrl: SonicController, seconds: float, hold: float)
     print("RESULT:", "FELL" if fell else "STAYED UP")
 
 
-def run_viewer(sim: G1Sim, ctrl: SonicController, hold: float, max_seconds: float | None) -> None:
+def run_viewer(sim: G1Sim, ctrl: SonicController, hold: float, max_seconds: float | None,
+               exit_on_end: bool = False, end_hold: float = 0.5) -> None:
     import mujoco.viewer
 
     obs = sonic_reset(sim, ctrl)
-    print("viewer: policy holds first frame, playback starts after hold. Close window to exit.")
+    print("viewer: policy holds first frame, playback starts after hold. "
+          + ("Exits when the clip ends." if exit_on_end else "Close window to exit."))
     with mujoco.viewer.launch_passive(sim.model, sim.data) as viewer:
         viewer.cam.distance, viewer.cam.elevation, viewer.cam.azimuth = 3.0, -15, 140
         t_launch = time.perf_counter()
         ticks = 0
+        t_clip_end = None
         while viewer.is_running():
             t_start = time.perf_counter()
             if not ctrl.playing and obs.time >= hold:
@@ -89,6 +92,11 @@ def run_viewer(sim: G1Sim, ctrl: SonicController, hold: float, max_seconds: floa
             ticks += 1
             if max_seconds is not None and t_start - t_launch > max_seconds:
                 break
+            if exit_on_end and not ctrl.loop and ctrl.playing and ctrl.frame >= ctrl.motion.num_frames - 1:
+                t_clip_end = t_clip_end or obs.time
+                if obs.time - t_clip_end >= end_hold:
+                    print("clip finished")
+                    break
             sleep = sim.control_dt - (time.perf_counter() - t_start)
             if sleep > 0:
                 time.sleep(sleep)
@@ -108,13 +116,16 @@ def main() -> None:
     p.add_argument("--no-ankle-boost", action="store_true", help="disable the v1.1 ankle-pitch 1.5x gain tuning")
     p.add_argument("--headless", type=float, metavar="SECONDS", default=None)
     p.add_argument("--auto-close", type=float, metavar="SECONDS", default=None)
+    p.add_argument("--exit-on-end", action="store_true",
+                   help="viewer: exit once the clip has played through (plus --end-hold seconds)")
+    p.add_argument("--end-hold", type=float, default=0.5, help="seconds to keep the final pose before exiting")
     args = p.parse_args()
 
     sim, ctrl = make(args)
     if args.headless is not None:
         run_headless(sim, ctrl, args.headless, args.hold)
     else:
-        run_viewer(sim, ctrl, args.hold, args.auto_close)
+        run_viewer(sim, ctrl, args.hold, args.auto_close, exit_on_end=args.exit_on_end, end_hold=args.end_hold)
 
 
 if __name__ == "__main__":

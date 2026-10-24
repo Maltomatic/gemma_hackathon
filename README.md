@@ -38,6 +38,29 @@ starts and the robot tracks the clip. Close the window to exit.
 | `--hold 2` | seconds the policy holds frame 0 before playing |
 | `--no-ankle-boost` | drop the v1.1 recommended 1.5x ankle-pitch gain tuning |
 
+## Remote trigger: `scripts/sonic_launcher.py`
+
+A TCP launcher so another app on another device can fire trajectories:
+
+```bash
+.venv\Scripts\python scripts/sonic_launcher.py              # listens on 0.0.0.0:5555
+.venv\Scripts\python scripts/sonic_launcher.py --headless   # no window
+```
+
+Protocol, newline-terminated ASCII on one connection (reuse it for the next request):
+
+| client sends | server replies | meaning |
+|---|---|---|
+| `0` .. `5` | `0` when done | run that trajectory once in a fresh sim process, reply when it exits |
+| `?` | one `idx name ok|missing` line each, then `.` | list trajectories |
+
+Trajectories: 0 tap, 1 shake, 2 slap, 3 forward, 4 left, 5 right (`motion_demo/<name>.csv`).
+Non-zero replies: `1` unknown number or missing CSV, `2` busy (one at a time), `3` sim process failed.
+Each run takes hold (2 s default, `--hold`) + clip length + 0.5 s end hold; the viewer window
+opens and closes per request. Allow the port through Windows Firewall for other devices.
+
+Smoke test from another machine: `printf '0\n' | nc <laptop-ip> 5555` prints `0` when the tap ends.
+
 The plain sim without SONIC is still there for debugging the env itself:
 
 ```bash
@@ -89,7 +112,8 @@ g1_sim/
   quat.py              wxyz quaternion helpers (heading, 6-D rotation, slerp)
   run_sonic.py         SONIC demo CLI;  run_viewer.py  env-only CLI
 scripts/download_sonic.py   parallel range-request downloader for the HF checkpoint
-motion_demo/tap.csv         short LAFAN-format demo clip (videos next to it are gitignored)
+scripts/sonic_launcher.py   TCP launcher: trajectory number in, 0 out when the run finishes
+motion_demo/*.csv           six LAFAN-format demo clips (videos next to them are gitignored)
 models/sonic/               (gitignored) sonic_v1_1/*.onnx, configs, sample_data/
 third_party/mujoco_menagerie/unitree_g1/   (gitignored) Menagerie G1 MJCF, BSD-3
 ```

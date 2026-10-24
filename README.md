@@ -63,8 +63,9 @@ From another device, copy `scripts/client_sample.py` (standard library only) and
 
 ```bash
 python client_sample.py <laptop-ip>          # interactive: type 0-5, ? to list, q to quit
-python client_sample.py <laptop-ip> 3        # one-shot; exit code is the launcher status
-python client_sample.py <laptop-ip> 0 1 2    # sequence, each waits for completion
+python client_sample.py <laptop-ip> 3        # run 3, then stay at the prompt for more
+python client_sample.py <laptop-ip> 0 1 2    # sequence, each waits for completion, then prompt
+python client_sample.py <laptop-ip> 3 --once # run and exit; exit code is the launcher status
 ```
 
 Or without Python: `printf '0\n' | nc <laptop-ip> 5555` prints `0` when the tap ends.

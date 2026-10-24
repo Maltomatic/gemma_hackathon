@@ -3,13 +3,15 @@
 Only the Python standard library is needed, so copy this one file to the other device.
 
     python client_sample.py 192.168.7.23            # interactive: type 0-5, ?, or q
-    python client_sample.py 192.168.7.23 3          # one-shot: run trajectory 3, exit when done
-    python client_sample.py 192.168.7.23 0 1 2      # several in sequence, each waits for 0
+    python client_sample.py 192.168.7.23 3          # run trajectory 3, then stay at the prompt
+    python client_sample.py 192.168.7.23 0 1 2      # several in sequence, then stay at the prompt
+    python client_sample.py 192.168.7.23 3 --once   # run and exit (for scripts)
     python client_sample.py 192.168.7.23 ?          # list trajectories
     python client_sample.py 192.168.7.23 --port 6000 3
 
-Exit code of a one-shot run is the launcher's status: 0 done, 1 unknown trajectory,
-2 busy, 3 sim failed, 4 connection problem.
+The connection stays open between motions; type q (or Ctrl-C) to leave. With --once the
+exit code is the launcher's status: 0 done, 1 unknown trajectory, 2 busy, 3 sim failed,
+4 connection problem.
 """
 from __future__ import annotations
 
@@ -108,13 +110,12 @@ def main() -> int:
     p.add_argument("host", help="IP or hostname of the machine running sonic_launcher.py")
     p.add_argument("commands", nargs="*", help="trajectory numbers (0-5) and/or '?'; none = interactive")
     p.add_argument("--port", type=int, default=5555)
+    p.add_argument("--once", action="store_true",
+                   help="exit after the command-line trajectories instead of staying at the prompt")
     args = p.parse_args()
 
     try:
         with LauncherClient(args.host, args.port) as client:
-            if not args.commands:
-                interactive(client)
-                return 0
             last = 0
             for cmd in args.commands:
                 if cmd in ("?", "list"):
@@ -122,9 +123,12 @@ def main() -> int:
                         print(ln)
                     continue
                 last = run_one(client, int(cmd))
-                if last != 0:
+                if last != 0 and args.once:
                     return last
-            return last
+            if args.once:
+                return last
+            interactive(client)
+            return 0
     except (OSError, ConnectionError) as e:
         print(f"connection problem with {args.host}:{args.port}: {e}", file=sys.stderr)
         return CONNECT_ERROR

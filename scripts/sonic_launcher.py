@@ -43,6 +43,21 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MOTION_DIR = REPO_ROOT / "motion_demo"
+
+
+def sim_python() -> str:
+    """Interpreter for the sim subprocess: the repo's .venv if present, else whatever runs this script.
+
+    The launcher itself is stdlib-only, so it may be started with any Python; the sim needs
+    mujoco / onnxruntime / joblib, which live in .venv.
+    """
+    for cand in (REPO_ROOT / ".venv" / "Scripts" / "python.exe", REPO_ROOT / ".venv" / "bin" / "python"):
+        if cand.exists():
+            return str(cand)
+    return sys.executable
+
+
+SIM_PYTHON = sim_python()
 TRAJECTORIES: dict[int, str] = {0: "tap", 1: "shake", 2: "slap", 3: "forward", 4: "left", 5: "right"}
 
 STATUS_DONE, STATUS_UNKNOWN, STATUS_BUSY, STATUS_FAILED = 0, 1, 2, 3
@@ -70,7 +85,7 @@ class LauncherState:
         with self.lock:
             if self.current is not None and self.current.poll() is None:
                 return STATUS_BUSY, None
-            cmd = [sys.executable, "-m", "g1_sim.run_sonic", "--motion", str(path),
+            cmd = [SIM_PYTHON, "-m", "g1_sim.run_sonic", "--motion", str(path),
                    "--hold", str(self.args.hold)]
             if self.args.headless:
                 # headless: run exactly hold + clip length (+ settle margin) then exit
@@ -161,6 +176,7 @@ def main() -> None:
     with Server((args.host, args.port), Handler) as srv:
         ips = sorted({i[4][0] for i in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)})
         log(f"SONIC launcher listening on {args.host}:{args.port}  (this machine: {', '.join(ips)})")
+        log(f"sim interpreter: {SIM_PYTHON}")
         log("trajectories:\n" + Handler.state.listing().rstrip("\n."))
         try:
             srv.serve_forever()

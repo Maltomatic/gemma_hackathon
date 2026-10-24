@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import joblib
 import numpy as np
 
 from . import quat
@@ -90,6 +89,8 @@ def make_reference_motion(
 
 def load_reference_motions(pkl_path: str | Path, target_fps: float = CONTROL_HZ) -> dict[str, ReferenceMotion]:
     """GEAR-SONIC ``robot_filtered`` pickle: one or more clips, 30 fps, hardware joint order."""
+    import joblib  # only the pickle path needs it; LAFAN CSVs load with numpy alone
+
     raw = joblib.load(str(pkl_path))
     return {
         str(name): make_reference_motion(

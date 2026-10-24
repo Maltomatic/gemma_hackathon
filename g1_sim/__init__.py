@@ -10,7 +10,8 @@ __all__ = [
 # SONIC (optional: needs onnxruntime + joblib and the downloaded checkpoint)
 try:
     from .sonic_controller import SonicController, sonic_reset, settle_default_pose  # noqa: F401
-    from .sonic_motion import ReferenceMotion, load_reference_motions  # noqa: F401
-    __all__ += ["SonicController", "sonic_reset", "settle_default_pose", "ReferenceMotion", "load_reference_motions"]
+    from .sonic_motion import ReferenceMotion, load_reference_motions, load_lafan_csv, load_motions  # noqa: F401
+    __all__ += ["SonicController", "sonic_reset", "settle_default_pose", "ReferenceMotion",
+                "load_reference_motions", "load_lafan_csv", "load_motions"]
 except ImportError:  # pragma: no cover
     pass

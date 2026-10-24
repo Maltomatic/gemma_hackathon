@@ -5,3 +5,5 @@ third_party/mujoco_menagerie/
 models/
 *.onnx
 *.pt
+motion_demo/*.mp4
+motion_demo/*.zip

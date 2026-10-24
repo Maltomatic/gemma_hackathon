@@ -3,6 +3,7 @@
     python -m g1_sim.run_sonic                       # viewer, sample walking clip
     python -m g1_sim.run_sonic --headless 12         # no window, print tracking stats
     python -m g1_sim.run_sonic --motion path/to.pkl --clip name --loop
+    python -m g1_sim.run_sonic --motion lafan_clip.csv     # Unitree LAFAN1 retargeting CSV
 
 Timeline: the robot settles in SONIC's default stance, the policy holds the clip's first
 frame for ``--hold`` seconds (so it walks into the pose), then playback starts.
@@ -17,14 +18,14 @@ import numpy as np
 
 from .env import G1Sim, REPO_ROOT
 from .sonic_controller import SonicController, sonic_reset
-from .sonic_motion import load_reference_motions
+from .sonic_motion import load_motions
 
 DEFAULT_MODEL_DIR = REPO_ROOT / "models" / "sonic" / "sonic_v1_1"
 DEFAULT_MOTION = REPO_ROOT / "models" / "sonic" / "sample_data" / "robot_filtered" / "210531" / "walk_forward_amateur_001__A001.pkl"
 
 
 def make(args) -> tuple[G1Sim, SonicController]:
-    clips = load_reference_motions(args.motion)
+    clips = load_motions(args.motion)
     name = args.clip or next(iter(clips))
     if name not in clips:
         raise SystemExit(f"clip {name!r} not in {list(clips)}")
@@ -99,7 +100,8 @@ def run_viewer(sim: G1Sim, ctrl: SonicController, hold: float, max_seconds: floa
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--model-dir", type=Path, default=DEFAULT_MODEL_DIR)
-    p.add_argument("--motion", type=Path, default=DEFAULT_MOTION, help="robot_filtered pickle")
+    p.add_argument("--motion", type=Path, default=DEFAULT_MOTION,
+                   help="GEAR-SONIC robot_filtered .pkl or Unitree LAFAN1 retargeting .csv")
     p.add_argument("--clip", default=None, help="clip name inside the pickle (default: first)")
     p.add_argument("--loop", action="store_true", help="loop the clip instead of holding its last frame")
     p.add_argument("--hold", type=float, default=2.0, help="seconds to hold the first frame before playing")

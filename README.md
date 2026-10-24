@@ -33,6 +33,7 @@ starts and the robot tracks the clip. Close the window to exit.
 |---|---|
 | `--headless 12` | no window; run 12 sim seconds and print height / tilt / tracking error |
 | `--motion file.pkl --clip name` | another `robot_filtered` clip from the GEAR-SONIC dataset |
+| `--motion file.csv` | a Unitree LAFAN1 retargeting CSV (36 cols: root xyz, quat xyzw, 29 joints, 30 fps) |
 | `--loop` | loop the clip instead of holding its last frame |
 | `--hold 2` | seconds the policy holds frame 0 before playing |
 | `--no-ankle-boost` | drop the v1.1 recommended 1.5x ankle-pitch gain tuning |
@@ -58,6 +59,13 @@ The plain sim without SONIC is still there for debugging the env itself:
 | headless speed | 2.7x realtime |
 | viewer | realtime (1.0x) |
 
+Other clips, same command with `--motion`:
+
+| clip | source | length | outcome | mean track err | max tilt |
+|---|---|---|---|---|---|
+| `motion_demo/tap.csv` | LAFAN CSV (in repo) | 5 s, also looped 20 s | stayed up, no drift | 0.07 rad | 11 deg |
+| `take_on_me_iris.csv` | LAFAN CSV (dance) | 89 s | stayed up | 0.14 rad | 19 deg |
+
 Gotchas seen so far: the default-stance settle takes ~0.5 s and the policy needs ~2 s of
 holding frame 0 to walk into the clip's start pose before playback (`--hold`). When the clip
 ends and the last frame is held, the tracking error rises to ~0.2 rad as the policy relaxes
@@ -74,13 +82,14 @@ g1_sim/
   sonic_params.py      Everything transcribed from the SONIC deploy stack: Isaac Lab <-> hardware
                        joint maps, armature-derived kp/kd, action scales, default angles,
                        encoder/decoder tensor layouts
-  sonic_motion.py      Load GEAR-SONIC robot_filtered pickles, resample 30 -> 50 Hz,
-                       Isaac Lab joint order, forward-difference velocities
+  sonic_motion.py      Load GEAR-SONIC robot_filtered pickles or LAFAN1 CSVs, resample
+                       30 -> 50 Hz, Isaac Lab joint order, forward-difference velocities
   sonic_controller.py  SonicController: 10-frame proprio history, g1-mode encoder input,
                        ONNX encoder -> 64-d token -> ONNX decoder -> 29-d action -> PD target
   quat.py              wxyz quaternion helpers (heading, 6-D rotation, slerp)
   run_sonic.py         SONIC demo CLI;  run_viewer.py  env-only CLI
 scripts/download_sonic.py   parallel range-request downloader for the HF checkpoint
+motion_demo/tap.csv         short LAFAN-format demo clip (videos next to it are gitignored)
 models/sonic/               (gitignored) sonic_v1_1/*.onnx, configs, sample_data/
 third_party/mujoco_menagerie/unitree_g1/   (gitignored) Menagerie G1 MJCF, BSD-3
 ```

@@ -59,7 +59,15 @@ Non-zero replies: `1` unknown number or missing CSV, `2` busy (one at a time), `
 Each run takes hold (2 s default, `--hold`) + clip length + 0.5 s end hold; the viewer window
 opens and closes per request. Allow the port through Windows Firewall for other devices.
 
-Smoke test from another machine: `printf '0\n' | nc <laptop-ip> 5555` prints `0` when the tap ends.
+From another device, copy `scripts/client_sample.py` (standard library only) and run:
+
+```bash
+python client_sample.py <laptop-ip>          # interactive: type 0-5, ? to list, q to quit
+python client_sample.py <laptop-ip> 3        # one-shot; exit code is the launcher status
+python client_sample.py <laptop-ip> 0 1 2    # sequence, each waits for completion
+```
+
+Or without Python: `printf '0\n' | nc <laptop-ip> 5555` prints `0` when the tap ends.
 
 The plain sim without SONIC is still there for debugging the env itself:
 

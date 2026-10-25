@@ -21,7 +21,7 @@ Kotlin, minSdk 26, built against Android SDK 35. Four files do the work:
   - Speculative decoding is off, because its extra `verify` graph doesn't fit in the phone's memory.
   - The image budget is 280 tokens.
   - Replies are capped at 48 tokens.
-  - The context is capped at 2,048 tokens.
+  - The context is capped at 4,096 tokens, to fit five frames.
   - Each frame gets a fresh conversation, so no history builds up inside the model; the harness passes recent history as text instead.
 - **Frames:** taken from CameraX and turned upright based on how the phone is physically held. They're cropped to what the screen shows, scaled to at most 768 px on the long side, and JPEG-encoded.
 
@@ -93,6 +93,7 @@ The app maps its motion names onto these numbers: `tap`→0, `shake`→1, `slap`
 |---|---|
 | model load (E2B, GPU, cached) | under 10 s |
 | one Gemma call (one image) | 3.5 to 5.5 s |
+| one Gemma call (last 5 frames, the current default for watching) | 8 to 13 s |
 | slouch confirmed (2 ratings in a row) | about 10 to 15 s |
 | one walking step in Gemma mode (Gemma + sim clip + 0.7 s settle) | about 17 s |
 | app memory with E2B on GPU | about 2.2 GB |

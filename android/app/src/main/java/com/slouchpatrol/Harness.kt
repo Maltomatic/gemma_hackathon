@@ -18,7 +18,7 @@ import java.util.concurrent.Executors
 
 data class Settings(
     val orinUrl: String = "192.168.7.23:5555",
-    val imagesPerCall: Int = 1,
+    val imagesPerCall: Int = 5,
     val voteWindow: Int = 2,
     val voteThreshold: Int = 2,
     val ttsDelayMs: Long = 0,
@@ -341,7 +341,7 @@ class Harness(
         private const val TAG = "SlouchPatrol"
 
         /** Kept small so the vision encoder and KV cache fit in an 8 GB phone's memory. */
-        const val MAX_IMAGES = 4
+        const val MAX_IMAGES = 5
 
         private val PUNISHMENTS = listOf(
             Punishment("tap", "Sit up straight."),

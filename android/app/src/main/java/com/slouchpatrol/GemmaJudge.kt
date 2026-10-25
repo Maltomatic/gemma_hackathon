@@ -54,7 +54,7 @@ class GemmaJudge(private val context: Context) {
                         modelPath = model.absolutePath,
                         backend = backend(),
                         visionBackend = vision(),
-                        maxNumTokens = 2048,
+                        maxNumTokens = 4096,
                         maxNumImages = maxImages,
                         cacheDir = context.cacheDir.path,
                     )
@@ -115,7 +115,7 @@ Each turn you choose exactly one preloaded motion:
 - "rotate_left": turn in place to the left by a small angle
 - "rotate_right": turn in place to the right by a small angle
 - "move_forward": walk a short step forward
-- "arrived": the target is centered and within arm's length, so stop walking
+- "arrived": the target is centered and a slight distance away, so stop walking
 Rules: if the target is in the left third, rotate_left; right third, rotate_right; centered and a few steps away, move_forward, or "arrived".
 Say "arrived" as soon as the target is close: they seem a not-far distance away, as in you can no longer see the full body or they have an obvious portion of the torso out of frame despite being mostly centered.
 Never walk into anyone. When unsure whether you are close enough, say "arrived".

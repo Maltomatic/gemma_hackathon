@@ -82,6 +82,10 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra("target")?.takeIf { it.isNotBlank() }?.let {
             getSharedPreferences("settings", MODE_PRIVATE).edit().putString("target", it).commit()
         }
+        // `-e images 5` sends the last 5 frames (oldest first) in each watch call.
+        intent.getStringExtra("images")?.toIntOrNull()?.let {
+            getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("imagesPerCall", it).commit()
+        }
         // `-e maxfwd 3` caps forward steps in Gemma mode.
         intent.getStringExtra("maxfwd")?.toIntOrNull()?.let {
             getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("maxForward", it).commit()

@@ -47,7 +47,7 @@ LOADING ──► WATCHING ──(2 slouch ratings ≥ 5 in a row)──► APPR
                 └──────────────────────────── Reset ────────────────────────────────────────┘
 ```
 
-- **Strikes** count confirmed slouches since the app started. Strike 1 is `tap` ("Sit up straight."), strike 2 is `shake` ("I said, sit up straight."), and strike 3 and later is `slap` ("You need to stop slouching."). **Forgive** in Settings clears them.
+- **The hit** is chosen at launch with the `hit` setting (`-e hit tap|shake|slap`), so a one-shot demo always ends the same way. Each has its own line: `tap` says "Sit up straight.", `shake` says "I said, sit up straight.", and `slap` says "You need to stop slouching." With `-e hit escalate` it goes by strike count instead: tap, then shake, then slap for the third and later. **Forgive** in Settings clears the count.
 - **Fixed mode** (`fixedSteps > 0`): after a slouch is confirmed, the robot plays `move_forward` exactly N times with no Gemma calls, then punishes. This is the predictable option for the stage.
 - **Gemma mode** (`fixedSteps = 0`): Gemma picks each step from a new frame. It gives up after 10 steps.
 

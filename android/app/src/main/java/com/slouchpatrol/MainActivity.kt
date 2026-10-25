@@ -86,6 +86,10 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra("images")?.toIntOrNull()?.let {
             getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("imagesPerCall", it).commit()
         }
+        // `-e hit slap` picks the one hit the robot plays at the end: tap, shake, slap, or escalate.
+        intent.getStringExtra("hit")?.lowercase()?.takeIf { it in setOf("tap", "shake", "slap", "escalate") }?.let {
+            getSharedPreferences("settings", MODE_PRIVATE).edit().putString("hit", it).commit()
+        }
         // `-e maxfwd 3` caps forward steps in Gemma mode.
         intent.getStringExtra("maxfwd")?.toIntOrNull()?.let {
             getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("maxForward", it).commit()
@@ -176,7 +180,7 @@ class MainActivity : ComponentActivity() {
             val mode = if (harness.settings.fixedSteps > 0) "fixed ${harness.settings.fixedSteps} steps" else "Gemma walks"
             appendLine("${snap.state}  ·  $mode  ·  strikes ${snap.strikes}  ·  ${gemma.modelName} on ${gemma.backendName}  ·  ${snap.latencyMs} ms")
             appendLine(if (airplane) "Airplane mode ON (on-device only)" else "Airplane mode off")
-            appendLine("Target: person wearing ${harness.settings.target}")
+            appendLine("Target: person wearing ${harness.settings.target}  ·  hit: ${harness.settings.hit}")
             appendLine("Gemma: ${snap.lastRaw.take(120)}")
             append(snap.note)
         }
@@ -227,6 +231,7 @@ class MainActivity : ComponentActivity() {
             fixedSteps = p.getInt("fixedSteps", d.fixedSteps),
             maxForward = p.getInt("maxForward", d.maxForward),
             target = p.getString("target", d.target)!!,
+            hit = p.getString("hit", d.hit)!!,
         )
     }
 

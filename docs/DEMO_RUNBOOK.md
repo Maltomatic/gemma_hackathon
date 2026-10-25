@@ -5,7 +5,7 @@
 1. The **target wears a bright pink wig** and sits side-on to the robot, typing on a laptop, about 1 to 2 robot steps away. Gemma ignores everyone else, so people in the background are fine.
 2. They sit up straight at first. The phone screen shows ratings around 0 to 4.
 3. They slouch hard. After two ratings of 5 or more in a row (about 10 to 15 s), the robot walks over and **taps** them. The phone says "Sit up straight."
-4. Reset, and do it again for a **shake** ("I said, sit up straight."), then a **slap** ("You need to stop slouching.").
+4. The hit is fixed at launch: `-e hit tap`, `-e hit shake` or `-e hit slap`. To show all three, relaunch with a different `hit` between runs, or use `-e hit escalate`.
 
 ## Before you go on
 

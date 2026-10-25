@@ -34,6 +34,8 @@ data class Settings(
     val maxForward: Int = 3,
     /** Who to watch, finishing the phrase "the person wearing ...". Everyone else is ignored. */
     val target: String = "a bright pink wig",
+    /** "tap", "shake" or "slap" always plays that hit; "escalate" goes tap, shake, slap by strike count. */
+    val hit: String = "tap",
 )
 
 data class Observation(val t: Double, val score: Int, val slouching: Boolean, val person: String, val distance: String)
@@ -136,7 +138,9 @@ class Harness(
 
     private suspend fun approachAndPunish() {
         strikes++
-        val punishment = PUNISHMENTS[(strikes - 1).coerceAtMost(PUNISHMENTS.lastIndex)]
+        // A fixed hit chosen at launch (tap / shake / slap), or "escalate" to go by strike count.
+        val punishment = PUNISHMENTS.firstOrNull { it.motion == settings.hit }
+            ?: PUNISHMENTS[(strikes - 1).coerceAtMost(PUNISHMENTS.lastIndex)]
         addLog(JSONObject().put("t", now()).put("event", "slouch confirmed").put("strike", strikes)
             .put("punishment", punishment.motion))
         publish(State.APPROACHING, "Strike $strikes: walking over to ${punishment.motion}")

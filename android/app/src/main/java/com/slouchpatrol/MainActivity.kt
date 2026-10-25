@@ -78,6 +78,10 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra("steps")?.toIntOrNull()?.let {
             getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("fixedSteps", it).commit()
         }
+        // `-e target "a bright pink wig"` sets who to watch ("the person wearing ...").
+        intent.getStringExtra("target")?.takeIf { it.isNotBlank() }?.let {
+            getSharedPreferences("settings", MODE_PRIVATE).edit().putString("target", it).commit()
+        }
         // `-e maxfwd 3` caps forward steps in Gemma mode.
         intent.getStringExtra("maxfwd")?.toIntOrNull()?.let {
             getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("maxForward", it).commit()
@@ -168,6 +172,7 @@ class MainActivity : ComponentActivity() {
             val mode = if (harness.settings.fixedSteps > 0) "fixed ${harness.settings.fixedSteps} steps" else "Gemma walks"
             appendLine("${snap.state}  ·  $mode  ·  strikes ${snap.strikes}  ·  ${gemma.modelName} on ${gemma.backendName}  ·  ${snap.latencyMs} ms")
             appendLine(if (airplane) "Airplane mode ON (on-device only)" else "Airplane mode off")
+            appendLine("Target: person wearing ${harness.settings.target}")
             appendLine("Gemma: ${snap.lastRaw.take(120)}")
             append(snap.note)
         }
@@ -217,6 +222,7 @@ class MainActivity : ComponentActivity() {
             slouchThreshold = p.getInt("slouchThreshold", d.slouchThreshold),
             fixedSteps = p.getInt("fixedSteps", d.fixedSteps),
             maxForward = p.getInt("maxForward", d.maxForward),
+            target = p.getString("target", d.target)!!,
         )
     }
 

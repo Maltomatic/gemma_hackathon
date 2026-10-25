@@ -91,32 +91,35 @@ class GemmaJudge(private val context: Context) {
     }
 
     companion object {
-        /** Used while the robot stands still and watches. */
-        const val WATCH_PROMPT = """You are the vision module of a posture-enforcement robot. A phone camera is mounted on the robot's head.
-Goal: rate how much the person in view, who is seated working at a desk or laptop, is slouching.
+        /** Used while the robot stands still and watches. Only the target person counts. */
+        fun watchPrompt(target: String) = """You are the vision module of a posture-enforcement robot. A phone camera is mounted on the robot's head.
+Your target is the person wearing $target. There may be other people in the image; ignore them completely.
+If nobody in the image is wearing $target, reply with "slouch": 0 and "person": "none".
+Goal: rate how much the target, who is seated working at a desk or laptop, is slouching.
 Look at the line from hip to shoulder to ear.
 0 = upright: back straight and vertical, ears above the shoulders, chest open.
 5 = clear slouch: upper back visibly rounded or leaning forward, head in front of the shoulders.
 10 = extreme: hunched over, back curled, face close to the desk or screen.
 Hard rules: if the head is at or below shoulder height, or the torso leans forward more than about 30 degrees from vertical, score at least 7.
 Only score 0 to 2 if the back is clearly straight and vertical.
-Also report where the person is horizontally in the NEWEST image ("left" third, "center" third, "right" third, or "none"),
+Also report where the target is horizontally in the NEWEST image ("left" third, "center" third, "right" third, or "none"),
 and how far away they are: "reach" if they fill most of the frame height and are within arm's length, "near" if a few steps away, "far" otherwise.
 Reply with exactly one line of JSON and nothing else:
 {"slouch": integer 0 to 10, "person": "left" | "center" | "right" | "none", "distance": "far" | "near" | "reach"}"""
 
-        /** Used while the robot walks to the person, one motion at a time. */
-        const val APPROACH_PROMPT = """You are the navigation planner of a humanoid robot. A phone camera is mounted on the robot's head and you see what the robot sees.
-Goal: reach the slouching person shown in the log and stop within arm's length, facing them.
+        /** Used while the robot walks to the target, one motion at a time. */
+        fun approachPrompt(target: String) = """You are the navigation planner of a humanoid robot. A phone camera is mounted on the robot's head and you see what the robot sees.
+Your target is the person wearing $target. There may be other people in the image; ignore them and never walk toward them.
+Goal: reach the target and stop within arm's length, facing them.
 Each turn you choose exactly one preloaded motion:
 - "rotate_left": turn in place to the left by a small angle
 - "rotate_right": turn in place to the right by a small angle
 - "move_forward": walk a short step forward
-- "arrived": the person is centered and within arm's length, so stop walking
-Rules: if the person is in the left third, rotate_left; right third, rotate_right; centered and a few steps away, move_forward.
-Say "arrived" as soon as the person is close: they fill most of the frame, or you can only see part of their body (legs, torso, lap) because they are right in front of you.
-Never walk into the person. When unsure whether you are close enough, say "arrived".
-If no person is visible, rotate toward the side where they were last seen in the log.
+- "arrived": the target is centered and within arm's length, so stop walking
+Rules: if the target is in the left third, rotate_left; right third, rotate_right; centered and a few steps away, move_forward.
+Say "arrived" as soon as the target is close: they fill most of the frame, or you can only see part of their body (legs, torso, lap) because they are right in front of you.
+Never walk into anyone. When unsure whether you are close enough, say "arrived".
+"person" describes the target only. If the target is not visible, use "none" and rotate toward the side where they were last seen in the log.
 Reply with exactly one line of JSON and nothing else:
 {"action": "rotate_left" | "rotate_right" | "move_forward" | "arrived", "person": "left" | "center" | "right" | "none", "distance": "far" | "near" | "reach"}"""
     }

@@ -8,7 +8,7 @@ A phone on a humanoid's head runs Gemma fully offline. It watches you work, and 
 
 ## Structure (about 3 minutes)
 
-1. **Cold open, the demo (60 s).** Someone types at a laptop and slouches. The robot walks over and taps them, and the phone says "Sit up straight." Let the laugh land.
+1. **Cold open, the demo (60 s).** Someone in a pink wig types at a laptop and slouches. The robot walks over and taps them, and the phone says "Sit up straight." Let the laugh land.
 2. **What just happened (45 s).** The phone on the robot's head is the whole brain. Gemma 4 E2B runs on the phone's GPU through LiteRT-LM and looks at a camera frame every few seconds. It decides two things: is this person slouching, and what should the robot do next. It picks from a menu of motions (step forward, turn left, turn right, tap, shake, slap). NVIDIA's SONIC controller turns each motion into joint commands. No cloud, no laptop doing inference.
 3. **The harness (45 s).** Gemma doesn't drive the robot directly. A small loop on the phone:
    - keeps a JSON log, which is the robot's memory;
@@ -42,6 +42,7 @@ A phone on a humanoid's head runs Gemma fully offline. It watches you work, and 
   - A plain yes/no question pulled the small model toward "no", so we ask for a 0–10 score with concrete anchors: a head at or below shoulder height scores at least 7.
   - After that, a hard hunch scored 7–10 and decent posture scored 3–6.
 - **Safety by design.** Motions are pre-recorded clips that SONIC has to keep balanced. Gemma can only choose from the menu, never send joint angles. A rule check refuses "arrived" unless the person is centered and within reach. Fixed mode removes Gemma from the walk entirely for the stage, and a teammate holds the e-stop.
+- **Crowded rooms.** Gemma watches one target, "the person wearing a bright pink wig", and ignores everyone else, so people walking behind the demo can't set it off. The target is a text setting, so it could be "the person in the red jacket" just as easily.
 - **Flaky venue Wi-Fi.** Pings to the launcher spiked to 900 ms, so the robot link reuses one connection and retries up to 3 times.
 
 ## Measured numbers

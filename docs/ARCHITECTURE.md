@@ -27,6 +27,8 @@ Kotlin, minSdk 26, built against Android SDK 35. Four files do the work:
 
 ### The two prompts
 
+Both prompts are about one **target**: "the person wearing a bright pink wig" by default (setting `target`, adb switch `-e target "..."`). Everyone else in the frame is ignored, which matters on a stage with people in the background. If the target isn't visible, Gemma reports `"person": "none"`, and a "none" never counts as a slouch vote.
+
 **Watch prompt.** Gemma rates slouching 0 to 10 using the hip–shoulder–ear line, with anchors at 0, 5, and 10, and two hard rules:
 - If the head is at or below shoulder height, or the torso leans forward more than about 30°, the score is at least 7.
 - Only a clearly straight back scores 0 to 2.

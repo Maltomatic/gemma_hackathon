@@ -32,6 +32,8 @@ data class Settings(
     val fixedSteps: Int = 0,
     /** Gemma mode never takes more than this many forward steps, whatever Gemma says. */
     val maxForward: Int = 3,
+    /** Who to watch, finishing the phrase "the person wearing ...". Everyone else is ignored. */
+    val target: String = "a bright pink wig",
 )
 
 data class Observation(val t: Double, val score: Int, val slouching: Boolean, val person: String, val distance: String)
@@ -116,7 +118,7 @@ class Harness(
         history.addLast(rotate(frame, s.extraRotation))
         while (history.size > s.imagesPerCall.coerceIn(1, MAX_IMAGES)) history.removeFirst()
 
-        val raw = ask(GemmaJudge.WATCH_PROMPT, history.toList(), watchTurn(history.size))
+        val raw = ask(GemmaJudge.watchPrompt(settings.target), history.toList(), watchTurn(history.size))
         val json = parse(raw) ?: return false.also { publish(state, "Could not parse Gemma's reply") }
         val score = json.optInt("slouch", if (json.optBoolean("slouching", false)) 10 else 0)
         val obs = Observation(now(), score, score >= s.slouchThreshold, person(json), distance(json))
@@ -179,7 +181,7 @@ class Harness(
             delay(settings.settleMs) // let the camera settle after the last motion
             if (state != State.APPROACHING) return false // Reset or Pause pressed mid-walk
             val frame = latestFrame()?.let { rotate(it, settings.extraRotation) } ?: continue
-            val raw = ask(GemmaJudge.APPROACH_PROMPT, listOf(frame), approachTurn(step))
+            val raw = ask(GemmaJudge.approachPrompt(settings.target), listOf(frame), approachTurn(step))
             val json = parse(raw)
             val seen = json?.let { person(it) } ?: "none"
             if (seen != "none") lastSeen = seen

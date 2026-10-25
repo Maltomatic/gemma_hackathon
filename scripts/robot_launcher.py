@@ -109,10 +109,13 @@ class Bridge:
     async def listing(self) -> str:
         try:
             c = await self.connect()
-            have = set(c.motions())
+            have = set(c.motions()) if c.sonic_live else None
         except (OSError, ConnectionError):
-            have = set()
-        lines = [f"{i} {n} {'ok' if n in have else 'missing'}" for i, n in TRAJECTORIES.items()]
+            have = None
+        if have is None:  # no motion list without a running SONIC
+            lines = [f"{i} {n} unknown(SONIC not running)" for i, n in TRAJECTORIES.items()]
+        else:
+            lines = [f"{i} {n} {'ok' if n in have else 'missing'}" for i, n in TRAJECTORIES.items()]
         return "\n".join(lines) + "\n.\n"
 
 

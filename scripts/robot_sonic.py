@@ -11,6 +11,7 @@ can run it from a laptop without the relay server or the browser GUI.
     python scripts/robot_sonic.py play 01_emerson_move --no-wait
     python scripts/robot_sonic.py rescan                       # re-read reference/ after adding a motion
     python scripts/robot_sonic.py stop                         # stop policy and kill the binary (robot goes limp!)
+    python scripts/robot_sonic.py estop                        # panic button: emergency_stop then stop, no prompt
     python scripts/robot_sonic.py run 01_emerson_move          # start, play, wait, (optionally --stop-after)
 
 Safety, read before "start":
@@ -191,6 +192,13 @@ async def amain(args) -> int:
             await c.stop()
             return 0
 
+        if args.cmd == "estop":
+            # No confirmation on purpose: this is the panic button.
+            c.log("-> emergency_stop, then control stop")
+            await c.emergency_stop()
+            await c.stop()
+            return 0
+
         if args.cmd == "run":
             if not args.yes:
                 confirm("Robot slack on gantry, native controller released, area clear?")
@@ -215,6 +223,7 @@ def main() -> int:
     pp = sub.add_parser("play"); pp.add_argument("motion"); pp.add_argument("--no-wait", action="store_true")
     sub.add_parser("rescan")
     sub.add_parser("stop")
+    sub.add_parser("estop", help="emergency_stop + stop, no confirmation prompt")
     pr = sub.add_parser("run"); pr.add_argument("motion")
     pr.add_argument("--settle", type=float, default=5.0, help="seconds to let the policy balance before playing")
     pr.add_argument("--stop-after", action="store_true")

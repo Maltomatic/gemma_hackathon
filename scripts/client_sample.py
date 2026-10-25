@@ -21,7 +21,8 @@ import sys
 import time
 
 TRAJECTORIES = {0: "tap", 1: "shake", 2: "slap", 3: "forward", 4: "left", 5: "right"}
-STATUS_TEXT = {0: "done", 1: "unknown trajectory / missing file", 2: "busy", 3: "sim process failed"}
+STATUS_TEXT = {0: "done", 1: "unknown trajectory / missing file", 2: "busy", 3: "playback failed",
+               5: "SONIC not running on robot"}
 CONNECT_ERROR = 4
 
 
@@ -61,26 +62,28 @@ class LauncherClient:
                 return lines
             lines.append(ln)
 
-    def run(self, idx: int) -> int:
-        """Request trajectory idx and block until the launcher reports completion."""
-        self.send(str(idx))
+    def run(self, req: int | str) -> int:
+        """Request a trajectory (number, or a motion name for the robot launcher) and block until done."""
+        self.send(str(req))
         return int(self._readline())
 
 
-def describe(idx: int) -> str:
-    return f"{idx} ({TRAJECTORIES.get(idx, '?')})"
+def describe(req: int | str) -> str:
+    if isinstance(req, int):
+        return f"{req} ({TRAJECTORIES.get(req, '?')})"
+    return repr(req)
 
 
-def run_one(client: LauncherClient, idx: int) -> int:
-    print(f"-> {describe(idx)} ... ", end="", flush=True)
+def run_one(client: LauncherClient, req: int | str) -> int:
+    print(f"-> {describe(req)} ... ", end="", flush=True)
     t0 = time.perf_counter()
-    status = client.run(idx)
+    status = client.run(req)
     print(f"{status} = {STATUS_TEXT.get(status, 'unknown status')} after {time.perf_counter() - t0:.1f}s")
     return status
 
 
 def interactive(client: LauncherClient) -> None:
-    print("connected. commands: 0-5 run trajectory, ? list, q quit")
+    print("connected. commands: 0-5 run trajectory (or a motion name on the robot launcher), ? list, q quit")
     for idx, name in TRAJECTORIES.items():
         print(f"  {idx}  {name}")
     while True:
@@ -97,12 +100,7 @@ def interactive(client: LauncherClient) -> None:
             for ln in client.list_trajectories():
                 print("  " + ln)
             continue
-        try:
-            idx = int(cmd)
-        except ValueError:
-            print("  type a trajectory number, ? or q")
-            continue
-        run_one(client, idx)
+        run_one(client, int(cmd) if cmd.isdigit() else cmd)
 
 
 def main() -> int:
@@ -122,7 +120,7 @@ def main() -> int:
                     for ln in client.list_trajectories():
                         print(ln)
                     continue
-                last = run_one(client, int(cmd))
+                last = run_one(client, int(cmd) if cmd.isdigit() else cmd)
                 if last != 0 and args.once:
                     return last
             if args.once:

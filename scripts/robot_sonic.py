@@ -308,7 +308,7 @@ def main() -> int:
     p.add_argument("--host", default=DEFAULT_HOST)
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("-y", "--yes", action="store_true", help="skip the countdown before start/stop")
-    p.add_argument("--countdown", type=float, default=3.0, help="seconds of countdown before start/stop (default 3)")
+    p.add_argument("--countdown", type=float, default=1.0, help="seconds of countdown before start/stop (default 1)")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     pr = sub.add_parser("run", help="start SONIC if needed, optionally play one motion, then prompt for more")

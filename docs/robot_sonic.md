@@ -94,6 +94,29 @@ Logs while it runs: `ssh unitree@192.168.123.164 journalctl -u sonic-daemon -f` 
 stdout is forwarded there with a `[sonic]` prefix). Per-run CSV logs land in
 `gear_sonic_deploy/logs/<date>/<time>/`.
 
+## Same pipe as the sim: `scripts/robot_launcher.py`
+
+A TCP bridge with exactly the `sonic_launcher.py` protocol, so `client_sample.py` (or anything
+that sends a number and waits for `0`) drives the real robot without changes:
+
+```bash
+.venv\Scripts\python scripts/robot_launcher.py            # TCP :5555, SONIC must already be running
+.venv\Scripts\python scripts/robot_launcher.py --start    # 3 s countdown, start SONIC via the daemon, then serve
+python client_sample.py <laptop-ip> 3                     # from any device: plays ufb_forward, prints 0 when done
+```
+
+| client sends | reply |
+|---|---|
+| `0`..`5` (tap, shake, slap, forward, left, right -> `ufb_<name>`) | `0` when the motion finished and the robot is back in planner idle |
+| a motion name, e.g. `01_emerson_move` or unique substring | same |
+| `?` | `idx name ok|missing` lines, then `.` |
+| | `1` unknown / not on robot, `2` busy, `3` playback failed or timed out, `5` SONIC not running |
+
+SONIC is never stopped by the bridge: between requests the robot stands in planner idle.
+Stop with `robot_sonic.py stop` / `estop` or the kill procedure below. The bridge can also run
+on the robot itself (copy `robot_launcher.py` and `robot_sonic.py` to a new folder there, system
+`python3` has `websockets`) with `--daemon-host 127.0.0.1`.
+
 ## Getting a recorded motion onto the robot (new files only)
 
 The binary consumes a folder of `joint_pos.csv`, `joint_vel.csv`, `body_pos.csv`,

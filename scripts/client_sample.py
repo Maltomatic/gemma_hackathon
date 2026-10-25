@@ -110,7 +110,8 @@ def main() -> int:
     p.add_argument("--port", type=int, default=5555)
     p.add_argument("--once", action="store_true",
                    help="exit after the command-line trajectories instead of staying at the prompt")
-    args = p.parse_args()
+    # intermixed: lets options come after the trajectory list on Python 3.10's argparse too
+    args = p.parse_intermixed_args()
 
     try:
         with LauncherClient(args.host, args.port) as client:

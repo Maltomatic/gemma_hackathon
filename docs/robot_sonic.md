@@ -113,9 +113,29 @@ python client_sample.py <laptop-ip> 3                     # from any device: pla
 | | `1` unknown / not on robot, `2` busy, `3` playback failed or timed out, `5` SONIC not running |
 
 SONIC is never stopped by the bridge: between requests the robot stands in planner idle.
-Stop with `robot_sonic.py stop` / `estop` or the kill procedure below. The bridge can also run
-on the robot itself (copy `robot_launcher.py` and `robot_sonic.py` to a new folder there, system
-`python3` has `websockets`) with `--daemon-host 127.0.0.1`.
+Stop with `robot_sonic.py stop` / `estop` or the kill procedure below.
+
+**Installed on the robot** at `~/ufb/gemma_launcher/` (new folder, nothing else touched):
+`robot_launcher.py`, `robot_sonic.py`, `client_sample.py`, this doc. The robot's system
+`python3` (3.10, websockets 16.1) runs them. To serve the pipe from the robot itself, so clients
+only need the robot's IP:
+
+The robot bridge uses **port 5556** so it never collides with a sim launcher on 5555 (the
+laptop's `sonic_launcher.py` was still listening on 5555 when this was written).
+
+```bash
+ssh unitree@192.168.123.164
+cd ~/ufb/gemma_launcher
+python3 robot_sonic.py --host 127.0.0.1 status                       # check first: daemon idle, sonic not running
+nohup python3 robot_launcher.py --daemon-host 127.0.0.1 --port 5556 --start -y > launcher.log 2>&1 &
+tail -f launcher.log                                                  # Ctrl-C leaves it running
+```
+
+Then from any device: `python client_sample.py 192.168.123.164 --port 5556 0`. Without
+`--start` it serves immediately and answers `5` until SONIC is running
+(`python3 robot_sonic.py --host 127.0.0.1 run`). Stop the bridge with `pkill -f robot_launcher.py`
+(SONIC keeps running); stop SONIC with `python3 robot_sonic.py --host 127.0.0.1 stop` or `estop`.
+No firewall work is needed: the robot's Ubuntu has no inbound filter and the laptop is only a client.
 
 ## Getting a recorded motion onto the robot (new files only)
 

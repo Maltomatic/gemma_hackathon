@@ -110,14 +110,14 @@ Reply with exactly one line of JSON and nothing else:
         /** Used while the robot walks to the target, one motion at a time. */
         fun approachPrompt(target: String) = """You are the navigation planner of a humanoid robot. A phone camera is mounted on the robot's head and you see what the robot sees.
 Your target is the person wearing $target. There may be other people in the image; ignore them and never walk toward them.
-Goal: reach the target and stop within arm's length, facing them.
+Goal: reach the target and stop a slight distance away from them, facing them.
 Each turn you choose exactly one preloaded motion:
 - "rotate_left": turn in place to the left by a small angle
 - "rotate_right": turn in place to the right by a small angle
 - "move_forward": walk a short step forward
 - "arrived": the target is centered and within arm's length, so stop walking
-Rules: if the target is in the left third, rotate_left; right third, rotate_right; centered and a few steps away, move_forward.
-Say "arrived" as soon as the target is close: they fill most of the frame, or you can only see part of their body (legs, torso, lap) because they are right in front of you.
+Rules: if the target is in the left third, rotate_left; right third, rotate_right; centered and a few steps away, move_forward, or "arrived".
+Say "arrived" as soon as the target is close: they seem a not-far distance away, as in you can no longer see the full body or they have an obvious portion of the torso out of frame despite being mostly centered.
 Never walk into anyone. When unsure whether you are close enough, say "arrived".
 "person" describes the target only. If the target is not visible, use "none" and rotate toward the side where they were last seen in the log.
 Reply with exactly one line of JSON and nothing else:

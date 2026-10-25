@@ -35,7 +35,7 @@ Both prompts are about one **target**: "the person wearing a bright pink wig" by
 
 Gemma also reports where the person is in the frame (left, center, right, or none) and how far away they are (far, near, or reach). The reply is one line of JSON.
 
-**Approach prompt.** Gemma picks the next motion from `rotate_left`, `rotate_right`, `move_forward`, and `arrived`, following written rules: turn toward the person's side of the frame, step forward when they're centered but not within reach, and stop when they're centered and within reach.
+**Approach prompt.** Gemma picks the next motion from `rotate_left`, `rotate_right`, `move_forward`, and `arrived`, following written rules: turn toward the person's side of the frame, step forward when they're centered but not within reach, and stop as soon as they look close: the full body no longer fits in frame, or an obvious part of the torso is cut off while they are mostly centered. When unsure, it stops.
 
 Each user turn also carries the last 5 entries of the harness's JSON log. That log is the robot's memory of what it saw and did.
 

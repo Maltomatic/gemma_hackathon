@@ -94,7 +94,17 @@ The binary consumes a folder of `joint_pos.csv`, `joint_vel.csv`, `body_pos.csv`
 50 Hz, joints in Isaac Lab order. That is exactly what the `.zip` files in `motion_demo/` hold
 (`tap.zip` = one such folder), and what `convert_motions.py --convert_lafan_csv` produces.
 
-**From a `.zip` (already in deploy format):**
+**All six demo motions in one go** (the zips all carry the same stale inner folder name, so
+`unzip -j` flattens each into its own `ufb_<name>` folder; `-n` never overwrites):
+
+```bash
+scp motion_demo/*.zip unitree@192.168.123.164:/tmp/
+ssh unitree@192.168.123.164 'cd ~/ufb/GR00T-WholeBodyControl-ufb/gear_sonic_deploy/reference && for m in tap shake slap forward left right; do mkdir -p ufb_$m && unzip -n -j /tmp/$m.zip -d ufb_$m >/dev/null && echo "ufb_$m: $(wc -l < ufb_$m/joint_pos.csv) rows"; done'
+```
+
+Motion names on the robot are then `ufb_tap`, `ufb_shake`, `ufb_slap`, `ufb_forward`, `ufb_left`, `ufb_right`.
+
+**From a single `.zip` (already in deploy format):**
 
 ```bash
 # laptop -> robot, into a NEW folder; pick a name that does not exist yet under reference/
@@ -118,6 +128,19 @@ ssh unitree@192.168.123.164 "cd ~/ufb/GR00T-WholeBodyControl-ufb/gear_sonic_depl
 The robot's system `python3` (3.10) has numpy 1.21 and scipy 1.8, which the converter needs.
 Then `rescan` and `play ufb_shake` as above. Alternatively convert on the laptop with the
 converter from the repo (it is pure numpy) and scp the resulting folder.
+
+## Killing it when a motion goes wrong
+
+In order of preference. Keep the robot on the gantry for all of these.
+
+1. `scripts/robot_sonic.py estop` from the laptop: sends `emergency_stop` then `stop`; the binary
+   writes its damping-only command and the daemon kills it. No confirmation prompt.
+2. If the websocket path is dead, over SSH: `pkill -INT -f g1_deploy_onnx_ref` (clean exit path),
+   then `pkill -9 -f g1_deploy_onnx_ref` if it is still there after a couple of seconds.
+3. `sudo systemctl restart sonic-daemon`: systemd kills the whole cgroup (daemon and binary) and
+   brings the daemon back idle. Use this if the daemon itself is wedged.
+4. Physical: the robot's e-stop / remote damping shortcut and the gantry. Once the binary is gone
+   nothing is publishing `rt/lowcmd`; do not count on the motors holding position.
 
 ## Sim parity note
 

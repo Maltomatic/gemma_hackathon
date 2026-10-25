@@ -141,12 +141,12 @@ No firewall work is needed: the robot's Ubuntu has no inbound filter and the lap
 
 | client device is on | use |
 |---|---|
+| the `LatentSpace` Wi-Fi (192.168.0.0/21; robot's `wlx...` got 192.168.3.18 on 2026-10-25) | `192.168.3.18` |
 | the wired Unitree bus (laptop with a 192.168.123.x address) | `192.168.123.164` |
-| the same Wi-Fi as the robot (robot's `wlx...` is on 192.168.8.x) | `192.168.8.213` |
 | Tailscale | `100.68.183.20` |
 
-Check with `ping <ip>` first. The laptop's Wi-Fi was on 192.168.7.x, a different subnet from the
-robot's 192.168.8.x, so from the laptop it is either the wired bus or Tailscale.
+The Wi-Fi address is DHCP and can change; confirm with
+`ssh unitree@192.168.123.164 "ip -4 -o addr show wlxfc23cd926954"` or `ping` before use.
 
 **How completion is detected.** The UFB binary keeps `playing=true` after a reference motion
 when the planner is on; it reports completion by switching `motion_name` back to

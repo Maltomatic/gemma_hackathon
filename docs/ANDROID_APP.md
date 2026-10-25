@@ -42,6 +42,7 @@ $A -e robot 192.168.7.23:5555      # launcher address (sim on Justin's laptop)
 $A -e robot 192.168.3.18:5556      # launcher address (real robot, LatentSpace Wi-Fi)
 $A -e steps 2                      # fixed mode: 2 forward steps, then the hit
 $A -e steps 0                      # Gemma mode: Gemma plans every step
+$A -e maxfwd 3                     # Gemma mode: never more than 3 forward steps
 $A -e threshold 5                  # slouch score (0-10) that counts as slouching
 $A -e votes 2/2                    # fire when 2 of the last 2 ratings are slouching
 $A -e backend GPU                  # GPU | CPU | MIXED (text on CPU, vision on GPU)

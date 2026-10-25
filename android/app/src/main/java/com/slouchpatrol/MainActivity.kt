@@ -78,6 +78,10 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra("steps")?.toIntOrNull()?.let {
             getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("fixedSteps", it).commit()
         }
+        // `-e maxfwd 3` caps forward steps in Gemma mode.
+        intent.getStringExtra("maxfwd")?.toIntOrNull()?.let {
+            getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("maxForward", it).commit()
+        }
         // `-e robot 192.168.7.23:5555` sets the SONIC launcher address the same way.
         intent.getStringExtra("robot")?.let {
             getSharedPreferences("settings", MODE_PRIVATE).edit().putString("orinUrl", it).commit()
@@ -212,6 +216,7 @@ class MainActivity : ComponentActivity() {
             backend = p.getString("backend", d.backend)!!,
             slouchThreshold = p.getInt("slouchThreshold", d.slouchThreshold),
             fixedSteps = p.getInt("fixedSteps", d.fixedSteps),
+            maxForward = p.getInt("maxForward", d.maxForward),
         )
     }
 

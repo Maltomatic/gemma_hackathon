@@ -12,6 +12,7 @@
 - [ ] **Launcher running:** the sim is `scripts/sonic_launcher.py` on port 5555; the real robot is `robot_launcher.py` on port 5556 (see [robot_sonic.md](robot_sonic.md)).
 - [ ] **Phone sees the launcher:** in the app, tap Settings › **Ping**. It must list `0 tap ok … 5 right ok`.
 - [ ] **Motions work:** in Settings, tap **↑ Fwd** once, then **Tap**. Both should play.
+- [ ] **Use fixed mode on stage.** Gemma mode works, but its distance judgment up close is the weakest part. If you use Gemma mode, keep `-e maxfwd` at or below the number of steps to the person.
 - [ ] **Fixed steps match the distance:** set `-e steps N`, where N is the floor distance divided by one forward step.
 - [ ] **Voice works:** Settings › **Voice** should speak. Make sure the offline English voice is downloaded.
 - [ ] **Strikes are cleared:** Settings › **Forgive**, then **Reset**.

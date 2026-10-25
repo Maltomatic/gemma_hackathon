@@ -51,16 +51,21 @@ LOADING ──► WATCHING ──(2 slouch ratings ≥ 5 in a row)──► APPR
 
 ### Rule check (Gemma mode)
 
-Gemma suggests a step; this code makes the final decision.
+Gemma suggests a step; this code makes the final decision. It errs toward stopping, because walking into someone is the failure that matters. Rules are checked top to bottom:
 
 | situation | what the robot does |
 |---|---|
-| no person in view | turn toward the side where they were last seen |
-| person centered and within reach | stop (arrived), whatever Gemma said |
-| Gemma says `arrived` or `move_forward` but the person is off-center | turn toward them |
-| Gemma says `arrived` but the person is only "near" | step forward |
+| Gemma says `arrived`, or rates the distance as "reach" | stop (arrived) |
+| it has already taken `maxForward` forward steps (default 3) | stop (arrived) |
+| no person in view, after walking toward one who wasn't "far" | stop: they're too close for the head camera to see |
+| no person in view otherwise | turn toward the side where they were last seen |
 | Gemma says `rotate_left` / `rotate_right` | allowed |
-| anything else | step forward if centered, otherwise turn toward them |
+| person centered | step forward |
+| person off-center | turn toward them |
+
+Every decision is also written to logcat under the tag `SlouchPatrol` (`adb logcat -s SlouchPatrol`), so a run can be reviewed afterwards.
+
+An earlier version overrode Gemma's "arrived" whenever it rated the person only "near". On the real robot, that sent it stepping forward while it was already at the person, because up close the head camera sees only part of them. The rules above fix that.
 
 ## 2. The launcher protocol
 

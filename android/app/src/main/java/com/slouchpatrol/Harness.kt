@@ -2,6 +2,7 @@ package com.slouchpatrol
 
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +30,8 @@ data class Settings(
     val slouchThreshold: Int = 5,
     /** 0 = Gemma plans the walk step by step; N > 0 = walk forward exactly N times, then punish. */
     val fixedSteps: Int = 0,
+    /** Gemma mode never takes more than this many forward steps, whatever Gemma says. */
+    val maxForward: Int = 3,
 )
 
 data class Observation(val t: Double, val score: Int, val slouching: Boolean, val person: String, val distance: String)
@@ -123,6 +126,7 @@ class Harness(
         addLog(JSONObject().put("t", obs.t).put("slouch", obs.score).put("person", obs.person)
             .put("distance", obs.distance))
 
+        Log.i(TAG, "watch slouch=${obs.score} person=${obs.person} distance=${obs.distance} raw=${raw.trim()}")
         val votes = observations.count { it.slouching && it.person != "none" }
         publish(state, "slouch ${obs.score}/10 (fires at ${s.slouchThreshold}) · votes $votes/${observations.size} (need ${s.voteThreshold})")
         return votes >= s.voteThreshold
@@ -169,6 +173,8 @@ class Harness(
     /** Gemma mode: one motion per frame until Gemma and the gate agree the person is within reach. */
     private suspend fun walkWithGemma(): Boolean {
         var arrived = false
+        var forwardSoFar = 0
+        var lastDistance = "far"
         for (step in 1..settings.maxSteps) {
             delay(settings.settleMs) // let the camera settle after the last motion
             if (state != State.APPROACHING) return false // Reset or Pause pressed mid-walk
@@ -178,9 +184,13 @@ class Harness(
             val seen = json?.let { person(it) } ?: "none"
             if (seen != "none") lastSeen = seen
             val chosen = json?.optString("action").orEmpty()
-            val action = gate(chosen, seen, json?.let { distance(it) } ?: "far")
+            val dist = json?.let { distance(it) } ?: "far"
+            val action = gate(chosen, seen, dist, forwardSoFar, lastDistance)
+            if (seen != "none") lastDistance = dist
+            if (action == "move_forward") forwardSoFar++
             addLog(JSONObject().put("t", now()).put("step", step).put("gemma", chosen).put("do", action)
-                .put("person", seen))
+                .put("person", seen).put("distance", dist))
+            Log.i(TAG, "step $step gemma=$chosen person=$seen distance=$dist -> $action (forward so far $forwardSoFar)")
             if (action == "arrived") {
                 arrived = true
                 break
@@ -201,18 +211,19 @@ class Harness(
 
     /**
      * The rule check between Gemma and the robot. Gemma proposes; this decides.
-     * Never walks forward into someone already within reach, only stops when the person is centered,
-     * and with no person in view turns toward where they were last seen.
+     * It errs toward stopping: Gemma's "arrived" is always trusted, "reach" always stops, losing sight of the
+     * person after walking toward them means they're too close to see, and forward steps are capped.
      */
-    private fun gate(chosen: String, person: String, distance: String): String = when {
-        person == "none" -> if (lastSeen == "right") "rotate_right" else "rotate_left"
-        person == "center" && distance == "reach" -> "arrived"
-        chosen == "arrived" || chosen == "move_forward" ->
-            if (person == "center") "move_forward" else "rotate_$person"
-        chosen == "rotate_left" || chosen == "rotate_right" -> chosen
-        person == "center" -> "move_forward"
-        else -> "rotate_$person"
-    }
+    private fun gate(chosen: String, person: String, distance: String, forwardSoFar: Int, lastDistance: String): String =
+        when {
+            chosen == "arrived" || distance == "reach" -> "arrived"
+            forwardSoFar >= settings.maxForward -> "arrived"
+            person == "none" && forwardSoFar > 0 && lastDistance != "far" -> "arrived"
+            person == "none" -> if (lastSeen == "right") "rotate_right" else "rotate_left"
+            chosen == "rotate_left" || chosen == "rotate_right" -> chosen
+            person == "center" -> "move_forward"
+            else -> "rotate_$person"
+        }
 
     /** Plays one motion by hand, for testing the robot link. */
     fun testMotion(motion: String) {
@@ -325,6 +336,8 @@ class Harness(
     private data class Punishment(val motion: String, val line: String)
 
     companion object {
+        private const val TAG = "SlouchPatrol"
+
         /** Kept small so the vision encoder and KV cache fit in an 8 GB phone's memory. */
         const val MAX_IMAGES = 4
 

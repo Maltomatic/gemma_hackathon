@@ -113,8 +113,10 @@ Each turn you choose exactly one preloaded motion:
 - "rotate_right": turn in place to the right by a small angle
 - "move_forward": walk a short step forward
 - "arrived": the person is centered and within arm's length, so stop walking
-Rules: if the person is in the left third, rotate_left; right third, rotate_right; centered and not within reach, move_forward;
-centered and filling most of the frame height, arrived. If no person is visible, rotate toward the side where they were last seen in the log.
+Rules: if the person is in the left third, rotate_left; right third, rotate_right; centered and a few steps away, move_forward.
+Say "arrived" as soon as the person is close: they fill most of the frame, or you can only see part of their body (legs, torso, lap) because they are right in front of you.
+Never walk into the person. When unsure whether you are close enough, say "arrived".
+If no person is visible, rotate toward the side where they were last seen in the log.
 Reply with exactly one line of JSON and nothing else:
 {"action": "rotate_left" | "rotate_right" | "move_forward" | "arrived", "person": "left" | "center" | "right" | "none", "distance": "far" | "near" | "reach"}"""
     }

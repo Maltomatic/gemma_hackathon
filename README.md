@@ -1,4 +1,4 @@
-# Slouch Patrol: Gemma on a phone drives a Unitree G1
+# ProductiBot : Gemma on a phone drives a Unitree G1
 
 A Unitree G1 humanoid watches you work. When you slouch, it walks over, taps you, and says "Sit up straight." Keep slouching and the tap turns into a shake, then a slap.
 

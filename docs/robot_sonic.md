@@ -76,14 +76,19 @@ From this repo on the laptop (robot reachable on 192.168.123.164):
 
 ```bash
 .venv\Scripts\python scripts/robot_sonic.py status
-.venv\Scripts\python scripts/robot_sonic.py start            # 3 s countdown (Ctrl-C aborts), then robot ramps to default pose, policy starts
-.venv\Scripts\python scripts/robot_sonic.py play 01_emerson_move   # plays, waits for playing=false, waits 2 s, then stops SONIC (robot goes limp)
+.venv\Scripts\python scripts/robot_sonic.py run 01_emerson_move
 ```
 
-or in one go: `scripts/robot_sonic.py run 01_emerson_move --settle 5` (countdown, start, settle,
-play, auto-stop). To chain several motions without SONIC stopping in between, pass
-`--keep-running` on each `play` and finish with `stop` (3 s countdown) or `estop` (none).
-`-y` skips the countdown; `--countdown N` and `--settle-after N` change the timings.
+`run`: 3 s countdown (Ctrl-C aborts), SONIC starts (robot ramps to default pose, policy
+balances), 5 s settle, the motion plays to completion, the robot returns to planner idle,
+and you land at a `sonic>` prompt. Type the next motion name or index (`ufb_tap`, `shake`,
+`3`...) to play it; `list`, `rescan`, `status`; `stop` to stop SONIC (robot drops to
+damping); `q` to exit the client and leave SONIC running. `run` without a motion just starts
+and prompts; `shell` opens the prompt against an already-running SONIC; `play <name>` is a
+one-shot that exits afterwards and also leaves SONIC running.
+
+SONIC is never stopped automatically. `stop` (3 s countdown) or `estop` (none) are the only
+ways. `-y` skips countdowns, `--countdown N` and `--settle N` change the timings.
 
 Logs while it runs: `ssh unitree@192.168.123.164 journalctl -u sonic-daemon -f` (the binary's
 stdout is forwarded there with a `[sonic]` prefix). Per-run CSV logs land in

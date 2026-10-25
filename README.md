@@ -1,167 +1,60 @@
-# Unitree G1 in MuJoCo, driven by NVIDIA SONIC
+# Slouch Patrol: Gemma on a phone drives a Unitree G1
 
-MuJoCo simulation of the Unitree G1 (29-DoF, no hands) with a controller hook, and a
-pure-Python port of NVIDIA's [GEAR-SONIC](https://github.com/NVlabs/GR00T-WholeBodyControl)
-whole-body controller running on CPU through onnxruntime. No Linux, CUDA, or TensorRT needed.
+A Unitree G1 humanoid watches you work. When you slouch, it walks over, taps you, and says "Sit up straight." Keep slouching and the tap turns into a shake, then a slap.
 
-## Setup
+The robot's brain is a Samsung phone mounted on its head. Gemma 4 E2B runs on the phone's GPU through LiteRT-LM, looks at the camera feed, decides when someone is slouching, and chooses which pre-recorded motion the robot plays next. NVIDIA's SONIC whole-body controller turns those motions into joint commands, either in a MuJoCo simulation or on the real robot. Nothing goes to the cloud.
 
-```bash
-git clone https://github.com/Maltomatic/gemma_hackathon.git
-cd gemma_hackathon
-uv venv .venv --python 3.13
-uv pip install --python .venv/Scripts/python.exe -r requirements.txt
-git clone --depth 1 --filter=blob:none --sparse https://github.com/google-deepmind/mujoco_menagerie.git third_party/mujoco_menagerie
-git -C third_party/mujoco_menagerie sparse-checkout set unitree_g1
-.venv\Scripts\python scripts/download_sonic.py     # ~200 MB from huggingface.co/nvidia/GEAR-SONIC
+Built at the Google Gemma Hardware Hackathon, AGI House, 2026-10-24.
+
+## How it works
+
+```
+Samsung phone (on the robot's head)
+  camera ──► frame every ~5 s ──► Gemma 4 E2B (LiteRT-LM, phone GPU)
+                                    │  {"slouch": 0-10, "person": left|center|right|none, "distance": far|near|reach}
+                                    ▼
+              harness: JSON log, 2-in-a-row trigger, state machine, rule check, strike count
+                                    │  "3\n" = move_forward, "0\n" = tap, ...
+                                    ▼
+            TCP to a SONIC launcher (same protocol for both)
+              ├─ scripts/sonic_launcher.py  → MuJoCo sim on a laptop      (port 5555)
+              └─ scripts/robot_launcher.py  → real G1 through its daemon  (port 5556)
+                                    │  "0\n" when the motion is done
+                                    ▼
+              phone speaks the line with Android's offline text-to-speech
 ```
 
-On macOS / Linux replace `.venv\Scripts\python` with `.venv/bin/python`. Python 3.13 and
-`uv` are what this was built with; anything 3.10+ with `pip` should work too.
+The phone runs a small loop around Gemma (the "harness"):
 
-## Run
+1. **Watch.** Gemma rates each frame for slouching from 0 to 10. Two ratings of 5 or more in a row confirm a slouch.
+2. **Walk.** In fixed mode, the robot steps forward a set number of times. In Gemma mode, Gemma looks again before every step and picks `rotate_left`, `rotate_right`, `move_forward`, or `arrived`. A rule check overrides unsafe choices.
+3. **Punish.** First strike is a tap, second a shake, third and later a slap, each with a spoken line.
+4. **Cooldown.** Wait for a teammate to put the robot back on its mark and tap Reset.
 
-```bash
-.venv\Scripts\python -m g1_sim.run_sonic
-```
+More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-Opens the MuJoCo viewer. The G1 settles into SONIC's default stance, the policy holds the
-first frame of the sample walking clip for 2 s (so it walks into the pose), then playback
-starts and the robot tracks the clip. Close the window to exit.
+## What's in this repo
 
-| flag | what it does |
+| path | what it is |
 |---|---|
-| `--headless 12` | no window; run 12 sim seconds and print height / tilt / tracking error |
-| `--motion file.pkl --clip name` | another `robot_filtered` clip from the GEAR-SONIC dataset |
-| `--motion file.csv` | a Unitree LAFAN1 retargeting CSV (36 cols: root xyz, quat xyzw, 29 joints, 30 fps) |
-| `--loop` | loop the clip instead of holding its last frame |
-| `--hold 2` | seconds the policy holds frame 0 before playing |
-| `--no-ankle-boost` | drop the v1.1 recommended 1.5x ankle-pitch gain tuning |
+| `android/` | The phone app (Kotlin): camera, Gemma through LiteRT-LM, the harness, the robot link. See [docs/ANDROID_APP.md](docs/ANDROID_APP.md) |
+| `g1_sim/` | MuJoCo G1 simulation with a pure-Python port of SONIC (onnxruntime on CPU). See [docs/sonic_sim.md](docs/sonic_sim.md) |
+| `scripts/sonic_launcher.py` | TCP launcher that plays a motion in the sim and replies when it ends |
+| `scripts/robot_launcher.py`, `scripts/robot_sonic.py` | The same protocol bridged to the real G1. See [docs/robot_sonic.md](docs/robot_sonic.md) |
+| `scripts/client_sample.py` | Standard-library test client for either launcher |
+| `motion_demo/*.csv` | The six demo motions: tap, shake, slap, forward, left, right |
+| `docs/` | Architecture, app guide, demo runbook, presentation notes |
 
-## Remote trigger: `scripts/sonic_launcher.py`
+## Quick start
 
-A TCP launcher so another app on another device can fire trajectories:
+1. Start a launcher. For the sim, on the laptop: `.venv\Scripts\python scripts/sonic_launcher.py`. It prints the laptop's addresses. For the real robot, see [docs/robot_sonic.md](docs/robot_sonic.md).
+2. Build and install the app: `cd android && ./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk`.
+3. Put the model on the phone: `adb push gemma-4-E2B-it.litertlm /data/local/tmp/llm/`.
+4. Point the app at the launcher: `adb shell am start -n com.slouchpatrol/.MainActivity -e robot <launcher-ip>:5555`.
+5. Point the phone at someone working on a laptop, side-on. Slouch.
 
-```bash
-.venv\Scripts\python scripts/sonic_launcher.py              # listens on 0.0.0.0:5555
-.venv\Scripts\python scripts/sonic_launcher.py --headless   # no window
-```
-
-Protocol, newline-terminated ASCII on one connection (reuse it for the next request):
-
-| client sends | server replies | meaning |
-|---|---|---|
-| `0` .. `5` | `0` when done | run that trajectory once in a fresh sim process, reply when it exits |
-| `?` | one `idx name ok|missing` line each, then `.` | list trajectories |
-
-Trajectories: 0 tap, 1 shake, 2 slap, 3 forward, 4 left, 5 right (`motion_demo/<name>.csv`).
-Non-zero replies: `1` unknown number or missing CSV, `2` busy (one at a time), `3` sim process failed.
-Each run takes hold (2 s default, `--hold`) + clip length + 0.5 s end hold; the viewer window
-opens and closes per request. Allow the port through Windows Firewall for other devices.
-
-From another device, copy `scripts/client_sample.py` (standard library only) and run:
-
-```bash
-python client_sample.py <laptop-ip>          # interactive: type 0-5, ? to list, q to quit
-python client_sample.py <laptop-ip> 3        # run 3, then stay at the prompt for more
-python client_sample.py <laptop-ip> 0 1 2    # sequence, each waits for completion, then prompt
-python client_sample.py <laptop-ip> 3 --once # run and exit; exit code is the launcher status
-```
-
-Or without Python: `printf '0\n' | nc <laptop-ip> 5555` prints `0` when the tap ends.
-
-The plain sim without SONIC is still there for debugging the env itself:
-
-```bash
-.venv\Scripts\python -m g1_sim.run_viewer --headless 10     # hold-pose controller
-```
-
-## Results on this laptop (CPU only, no GPU)
-
-`python -m g1_sim.run_sonic --headless 44 --hold 2` on the sample clip
-`walk_forward_amateur_001__A001` (stand 8 s, walk ~8 m out and back, stand):
-
-| metric | value |
-|---|---|
-| outcome | stayed up for the whole 42 s clip |
-| distance walked | ~6.8 m out, back to ~0.5 m from start |
-| min pelvis height / max tilt | 0.74 m / 9.6 deg |
-| mean joint tracking error (playing) | 0.076 rad (0.03 standing, ~0.07 walking) |
-| policy tick (encoder + decoder, onnxruntime CPU) | 6 to 7 ms |
-| headless speed | 2.7x realtime |
-| viewer | realtime (1.0x) |
-
-Other clips, same command with `--motion`:
-
-| clip | source | length | outcome | mean track err | max tilt |
-|---|---|---|---|---|---|
-| `motion_demo/tap.csv` | LAFAN CSV (in repo) | 5 s, also looped 20 s | stayed up, no drift | 0.07 rad | 11 deg |
-| `take_on_me_iris.csv` | LAFAN CSV (dance) | 89 s | stayed up | 0.14 rad | 19 deg |
-
-Gotchas seen so far: the default-stance settle takes ~0.5 s and the policy needs ~2 s of
-holding frame 0 to walk into the clip's start pose before playback (`--hold`). When the clip
-ends and the last frame is held, the tracking error rises to ~0.2 rad as the policy relaxes
-toward its own stance; pass `--loop` to keep moving instead.
-
-## Layout
-
-```
-g1_sim/
-  env.py               G1Sim: owns model/data, 50 Hz control tick over 2 ms physics,
-                       G1Obs (joints, pelvis quat / ang vel, projected gravity, IMU)
-  controllers.py       Controller protocol, HoldPoseController, PDGains, torque limits,
-                       ACTUATED_JOINTS (hardware / Unitree SDK order)
-  sonic_params.py      Everything transcribed from the SONIC deploy stack: Isaac Lab <-> hardware
-                       joint maps, armature-derived kp/kd, action scales, default angles,
-                       encoder/decoder tensor layouts
-  sonic_motion.py      Load GEAR-SONIC robot_filtered pickles or LAFAN1 CSVs, resample
-                       30 -> 50 Hz, Isaac Lab joint order, forward-difference velocities
-  sonic_controller.py  SonicController: 10-frame proprio history, g1-mode encoder input,
-                       ONNX encoder -> 64-d token -> ONNX decoder -> 29-d action -> PD target
-  quat.py              wxyz quaternion helpers (heading, 6-D rotation, slerp)
-  run_sonic.py         SONIC demo CLI;  run_viewer.py  env-only CLI
-scripts/download_sonic.py   parallel range-request downloader for the HF checkpoint
-scripts/sonic_launcher.py   TCP launcher: trajectory number in, 0 out when the run finishes
-motion_demo/*.csv           six LAFAN-format demo clips (videos next to them are gitignored)
-models/sonic/               (gitignored) sonic_v1_1/*.onnx, configs, sample_data/
-third_party/mujoco_menagerie/unitree_g1/   (gitignored) Menagerie G1 MJCF, BSD-3
-```
-
-## How the SONIC port works
-
-SONIC's released checkpoint is two ONNX graphs plus an observation config. The official
-runtime is C++ with TensorRT talking to a MuJoCo sim over Unitree SDK2 DDS, Linux and NVIDIA
-GPU only. This repo re-implements the observation pipeline from that C++ code in
-`sonic_controller.py` and runs the same ONNX files with onnxruntime on CPU.
-
-Per 50 Hz tick:
-
-1. **Proprio history.** The current pelvis angular velocity (body frame), joint positions
-   minus default angles, joint velocities, previous raw action, and gravity direction in the
-   pelvis frame are pushed into 10-frame buffers (oldest first), all in Isaac Lab joint order.
-2. **Encoder.** The next 10 reference frames spaced 100 ms apart are packed as joint
-   positions, joint velocities, and the reference pelvis orientation expressed relative to
-   the robot's *current heading* (yaw only) as a 6-D rotation. The clip is yaw-aligned to
-   the robot's heading when control starts. Teleop / SMPL slots stay zero (g1 mode). The
-   encoder returns a 64-d motion token.
-3. **Decoder.** token + histories (994 floats) -> 29 actions.
-4. **Action.** `q_target = default_angles + action * action_scale` in hardware order;
-   `G1Sim` applies `tau = kp (q_target - q) - kd dq` at 500 Hz with SONIC's motor-armature
-   gains (hips/knees ~99 Nm/rad, ankles ~28, arms ~14) and the v1.1 ankle-pitch 1.5x tuning.
-
-Isaac Lab orders joints breadth-first (left_hip_pitch, right_hip_pitch, waist_yaw, ...),
-the hardware orders them by limb. `sonic_params.MUJOCO_TO_ISAACLAB` / `ISAACLAB_TO_MUJOCO`
-carry the remap and are asserted against joint names at import.
-
-## Swapping the controller
-
-Anything that satisfies `g1_sim.controllers.Controller` (`__call__(obs) -> 29 target joint
-angles in hardware order`) plugs into `G1Sim.step`. `HoldPoseController` is the trivial
-example, `SonicController` the real one. For a different policy, pass its PD gains via
-`G1Sim(gains=PDGains(...))`.
+Step-by-step setup and stage checklist: [docs/DEMO_RUNBOOK.md](docs/DEMO_RUNBOOK.md). Pitch material and measured numbers: [docs/PRESENTATION_NOTES.md](docs/PRESENTATION_NOTES.md).
 
 ## Licenses
 
-Code here: your choice. Menagerie G1 model: BSD-3 (Google DeepMind). SONIC weights:
-NVIDIA Open Model License (see `models/sonic/LICENSE` after download). SONIC source
-that this port is derived from: Apache 2.0.
+App and harness code: the team's choice. Gemma 4: Gemma Terms of Use. LiteRT-LM: Apache 2.0. Menagerie G1 model: BSD-3 (Google DeepMind). SONIC weights: NVIDIA Open Model License. SONIC source that the sim port is derived from: Apache 2.0.

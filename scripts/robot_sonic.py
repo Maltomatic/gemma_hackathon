@@ -162,17 +162,40 @@ class SonicDaemonClient:
         self.log(f"sonic live: planner_enabled={self.status.get('planner_enabled')} "
                  f"motions={len(self.motions())} current={self.status.get('motion_name')!r}")
 
-    async def play(self, name: str, timeout: float = 600.0) -> None:
+    async def play(self, name: str, timeout: float = 600.0, assume_done_on_timeout: bool = False) -> None:
+        """Play one reference motion and return when it has finished.
+
+        With assume_done_on_timeout, a motion that has not reported completion within
+        ``timeout`` seconds is treated as finished (all demo clips are shorter than that)
+        instead of raising TimeoutError.
+
+        Completion semantics of the UFB build (see server/websocket_gui.html): while a reference
+        plays, status has playing=true and motion_name=<that motion>. When it ends the binary
+        hands control back to the planner: motion_name becomes "planner_motion" and playing
+        STAYS true if the planner is enabled (it only drops to false with the planner off).
+        So "done" = we saw the target playing, and now motion_name != target or playing == false.
+        """
         if not self.sonic_live:
             await self.wait_for(lambda s, d: bool(s), 10.0, "status with motion list")
         idx = self.motion_index(name)
-        self.log(f"-> goto_and_play {idx} ({self.motions()[idx]})")
+        target = self.motions()[idx]
+        self.log(f"-> goto_and_play {idx} ({target})")
         await self.send({"type": "motion", "action": "goto_and_play", "index": idx})
-        await self.wait_for(lambda s, d: s.get("playing") is True, 15.0, "playback to begin")
+        await self.wait_for(lambda s, d: s.get("playing") is True and s.get("motion_name") == target,
+                            15.0, f"{target} to start playing")
         t0 = time.monotonic()
-        self.log("playing ...")
-        await self.wait_for(lambda s, d: s.get("playing") is False, timeout, "playback to finish")
-        self.log(f"done after {time.monotonic() - t0:.1f}s; robot blending back to planner idle")
+        self.log(f"playing {target} ...")
+        try:
+            await self.wait_for(lambda s, d: s.get("motion_name") != target or s.get("playing") is False,
+                                timeout, f"{target} to finish")
+        except TimeoutError:
+            if not assume_done_on_timeout:
+                raise
+            self.log(f"no completion seen after {timeout:.0f}s; assuming {target} finished")
+            return
+        after = "planner idle" if self.status.get("motion_name") == "planner_motion" else \
+            f"{self.status.get('motion_name')} (playing={self.status.get('playing')})"
+        self.log(f"done after {time.monotonic() - t0:.1f}s; robot now in {after}")
 
     async def rescan(self) -> None:
         before = len(self.motions())

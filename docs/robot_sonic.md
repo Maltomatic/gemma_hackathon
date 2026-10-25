@@ -131,11 +131,30 @@ nohup python3 robot_launcher.py --daemon-host 127.0.0.1 --port 5556 --start -y >
 tail -f launcher.log                                                  # Ctrl-C leaves it running
 ```
 
-Then from any device: `python client_sample.py 192.168.123.164 --port 5556 0`. Without
+Then from any device: `python client_sample.py <robot-ip> --port 5556 0`. Without
 `--start` it serves immediately and answers `5` until SONIC is running
 (`python3 robot_sonic.py --host 127.0.0.1 run`). Stop the bridge with `pkill -f robot_launcher.py`
 (SONIC keeps running); stop SONIC with `python3 robot_sonic.py --host 127.0.0.1 stop` or `estop`.
 No firewall work is needed: the robot's Ubuntu has no inbound filter and the laptop is only a client.
+
+**Which robot IP to use** depends on how the client device reaches the robot:
+
+| client device is on | use |
+|---|---|
+| the wired Unitree bus (laptop with a 192.168.123.x address) | `192.168.123.164` |
+| the same Wi-Fi as the robot (robot's `wlx...` is on 192.168.8.x) | `192.168.8.213` |
+| Tailscale | `100.68.183.20` |
+
+Check with `ping <ip>` first. The laptop's Wi-Fi was on 192.168.7.x, a different subnet from the
+robot's 192.168.8.x, so from the laptop it is either the wired bus or Tailscale.
+
+**How completion is detected.** The UFB binary keeps `playing=true` after a reference motion
+when the planner is on; it reports completion by switching `motion_name` back to
+`planner_motion`. The bridge waits for the requested motion to appear as playing, then for
+`motion_name` to leave it (or `playing` to drop). As a safety net, `--max-motion-seconds` (default 8:
+longest demo clip 5.2 s plus the 1 s blend-in) replies `0` even if no state change is seen. If a
+client disconnects mid-motion (Ctrl-C) the bridge drops that wait at once, so the next client is
+never stuck on `2 busy`; the motion itself still finishes on the robot.
 
 ## Getting a recorded motion onto the robot (new files only)
 

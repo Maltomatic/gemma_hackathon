@@ -94,10 +94,13 @@ class Bridge:
             log(f"start  {req} -> {self.current}")
             t0 = time.monotonic()
             try:
-                await c.play(self.current, timeout=self.play_timeout)
+                await c.play(self.current, timeout=self.play_timeout, assume_done_on_timeout=True)
             except (TimeoutError, ConnectionError, KeyError) as e:
                 log(f"failed {self.current}: {e}")
                 return STATUS_FAILED
+            except asyncio.CancelledError:
+                log(f"wait for {self.current} cancelled")
+                raise
             finally:
                 self.current = None
             log(f"done   {req} ({time.monotonic() - t0:.1f}s), robot back in planner idle")
@@ -116,9 +119,17 @@ class Bridge:
 async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, bridge: Bridge) -> None:
     peer = writer.get_extra_info("peername")
     log(f"client {peer[0]}:{peer[1]} connected")
+    pending: bytes | None = None             # a line that arrived while a motion was running
+    read_task: asyncio.Task | None = None    # one outstanding readline() at a time, reused across turns
     try:
         while True:
-            raw = await reader.readline()
+            if pending is not None:
+                raw, pending = pending, None
+            else:
+                if read_task is None:
+                    read_task = asyncio.create_task(reader.readline())
+                raw = await read_task
+                read_task = None
             if not raw:
                 break
             msg = raw.decode("utf-8", "replace").strip()
@@ -128,7 +139,27 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, bri
                 writer.write((await bridge.listing()).encode())
                 await writer.drain()
                 continue
-            status = await bridge.run(msg)
+
+            # Run the motion while also watching the socket: if the client goes away
+            # (Ctrl-C) we cancel the wait so the busy lock is released immediately.
+            run_task = asyncio.create_task(bridge.run(msg))
+            if read_task is None:
+                read_task = asyncio.create_task(reader.readline())
+            done, _ = await asyncio.wait({run_task, read_task}, return_when=asyncio.FIRST_COMPLETED)
+            if run_task not in done:
+                nxt = read_task.result()
+                read_task = None
+                if not nxt:  # EOF: client disconnected mid-motion
+                    run_task.cancel()
+                    log(f"client {peer[0]} left during {msg!r}; wait cancelled (motion itself continues on the robot)")
+                    break
+                pending = nxt  # client sent another request early; serve it after this one
+                await run_task
+            elif read_task.done():
+                pending = read_task.result() or None
+                read_task = None
+            # else: read_task still pending; it becomes the next request's read
+            status = run_task.result()
             if status != STATUS_DONE:
                 log(f"client {peer[0]}: {msg!r} -> status {status}")
             writer.write(f"{status}\n".encode())
@@ -136,6 +167,8 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, bri
     except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
         pass
     finally:
+        if read_task is not None and not read_task.done():
+            read_task.cancel()
         writer.close()
         log(f"client {peer[0]}:{peer[1]} closed")
 
@@ -171,7 +204,9 @@ def main() -> None:
     p.add_argument("--settle", type=float, default=5.0, help="seconds to let the policy balance after --start")
     p.add_argument("--countdown", type=float, default=1.0, help="seconds of countdown before --start (default 1)")
     p.add_argument("-y", "--yes", action="store_true", help="skip the countdown for --start")
-    p.add_argument("--play-timeout", type=float, default=600.0, help="max seconds to wait for a motion to finish")
+    p.add_argument("--play-timeout", "--max-motion-seconds", dest="play_timeout", type=float, default=8.0,
+                   help="if no completion is reported within this many seconds, reply 0 anyway "
+                        "(all demo clips are under 5.2 s plus a 1 s blend-in; default 8)")
     args = p.parse_args()
     try:
         asyncio.run(amain(args))

@@ -76,12 +76,14 @@ From this repo on the laptop (robot reachable on 192.168.123.164):
 
 ```bash
 .venv\Scripts\python scripts/robot_sonic.py status
-.venv\Scripts\python scripts/robot_sonic.py start            # asks for YES; robot ramps to default pose, policy starts
-.venv\Scripts\python scripts/robot_sonic.py play 01_emerson_move   # waits until playing goes false (~5 s + blends)
-.venv\Scripts\python scripts/robot_sonic.py stop             # asks for YES; robot goes to damping
+.venv\Scripts\python scripts/robot_sonic.py start            # 3 s countdown (Ctrl-C aborts), then robot ramps to default pose, policy starts
+.venv\Scripts\python scripts/robot_sonic.py play 01_emerson_move   # plays, waits for playing=false, waits 2 s, then stops SONIC (robot goes limp)
 ```
 
-or in one go: `scripts/robot_sonic.py run 01_emerson_move --settle 5`.
+or in one go: `scripts/robot_sonic.py run 01_emerson_move --settle 5` (countdown, start, settle,
+play, auto-stop). To chain several motions without SONIC stopping in between, pass
+`--keep-running` on each `play` and finish with `stop` (3 s countdown) or `estop` (none).
+`-y` skips the countdown; `--countdown N` and `--settle-after N` change the timings.
 
 Logs while it runs: `ssh unitree@192.168.123.164 journalctl -u sonic-daemon -f` (the binary's
 stdout is forwarded there with a `[sonic]` prefix). Per-run CSV logs land in

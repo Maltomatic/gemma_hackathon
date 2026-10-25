@@ -6,13 +6,13 @@ forwards the binary's status broadcasts back. This script speaks that protocol s
 can run it from a laptop without the relay server or the browser GUI.
 
     python scripts/robot_sonic.py status                       # daemon + sonic state, motion list
-    python scripts/robot_sonic.py start                        # launch SONIC, policy takes over (robot moves!)
-    python scripts/robot_sonic.py play 01_emerson_move         # play a reference by name, wait until done
-    python scripts/robot_sonic.py play 01_emerson_move --no-wait
+    python scripts/robot_sonic.py start                        # 3 s countdown, then launch SONIC (robot moves!)
+    python scripts/robot_sonic.py play 01_emerson_move         # play by name, wait until done, then auto-stop
+    python scripts/robot_sonic.py play ufb_tap --keep-running  # ... but leave SONIC up for the next one
+    python scripts/robot_sonic.py run 01_emerson_move          # countdown, start, settle, play, auto-stop
     python scripts/robot_sonic.py rescan                       # re-read reference/ after adding a motion
-    python scripts/robot_sonic.py stop                         # stop policy and kill the binary (robot goes limp!)
-    python scripts/robot_sonic.py estop                        # panic button: emergency_stop then stop, no prompt
-    python scripts/robot_sonic.py run 01_emerson_move          # start, play, wait, (optionally --stop-after)
+    python scripts/robot_sonic.py stop                         # 3 s countdown, then stop (robot goes limp!)
+    python scripts/robot_sonic.py estop                        # panic button: emergency_stop then stop, no countdown
 
 Safety, read before "start":
   * On launch the binary ramps the robot to its default standing pose over 3 s, then
@@ -20,7 +20,9 @@ Safety, read before "start":
     the gantry with the native Unitree controller released, exactly as the team does
     with the browser GUI.
   * "stop" sends the binary's safe-shutdown command: damping only, no position hold.
-    Have the robot supported before stopping.
+    play/run stop automatically ~2 s after playback ends, so the robot goes limp then;
+    keep it on the gantry or pass --keep-running.
+  * Ctrl-C during the countdown aborts without sending anything.
   * This script never touches files on the robot.
 
 Requires the `websockets` package (already in this repo's .venv).
@@ -150,9 +152,13 @@ class SonicDaemonClient:
         await self.send({"type": "control", "action": "emergency_stop"})
 
 
-def confirm(prompt: str) -> None:
-    ans = input(f"{prompt} Type YES to continue: ").strip()
-    if ans != "YES":
+async def countdown(seconds: float, what: str) -> None:
+    """Print a countdown before a robot-moving action. Ctrl-C aborts."""
+    try:
+        for s in range(int(seconds), 0, -1):
+            print(f"{what} in {s}... (Ctrl-C to abort)", flush=True)
+            await asyncio.sleep(1.0)
+    except KeyboardInterrupt:
         print("aborted")
         sys.exit(1)
 
@@ -174,12 +180,16 @@ async def amain(args) -> int:
 
         if args.cmd == "start":
             if not args.yes:
-                confirm("Robot slack on gantry, native controller released, area clear?")
+                await countdown(args.countdown, "STARTING SONIC (robot will move)")
             await c.start()
             return 0
 
         if args.cmd == "play":
             await c.play(args.motion, wait=not args.no_wait)
+            if args.no_wait or args.keep_running:
+                return 0
+            await asyncio.sleep(args.settle_after)
+            await c.stop()
             return 0
 
         if args.cmd == "rescan":
@@ -188,7 +198,7 @@ async def amain(args) -> int:
 
         if args.cmd == "stop":
             if not args.yes:
-                confirm("Robot supported? Stopping drops to damping.")
+                await countdown(args.countdown, "STOPPING (robot drops to damping)")
             await c.stop()
             return 0
 
@@ -201,12 +211,12 @@ async def amain(args) -> int:
 
         if args.cmd == "run":
             if not args.yes:
-                confirm("Robot slack on gantry, native controller released, area clear?")
+                await countdown(args.countdown, "STARTING SONIC (robot will move)")
             await c.start()
             await asyncio.sleep(args.settle)
             await c.play(args.motion, wait=True)
-            if args.stop_after:
-                await asyncio.sleep(2.0)
+            if not args.keep_running:
+                await asyncio.sleep(args.settle_after)
                 await c.stop()
             return 0
     return 2
@@ -216,17 +226,22 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--host", default=DEFAULT_HOST)
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
-    p.add_argument("-y", "--yes", action="store_true", help="skip the safety confirmation prompts")
+    p.add_argument("-y", "--yes", action="store_true", help="skip the countdown before start/stop")
+    p.add_argument("--countdown", type=float, default=3.0, help="seconds of countdown before start/stop (default 3)")
+    p.add_argument("--settle-after", type=float, default=2.0,
+                   help="seconds to wait after playback finishes before auto-stopping (default 2)")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     sub.add_parser("start")
-    pp = sub.add_parser("play"); pp.add_argument("motion"); pp.add_argument("--no-wait", action="store_true")
+    pp = sub.add_parser("play"); pp.add_argument("motion")
+    pp.add_argument("--no-wait", action="store_true", help="send the command and return (implies --keep-running)")
+    pp.add_argument("--keep-running", action="store_true", help="leave SONIC running after playback instead of stopping")
     sub.add_parser("rescan")
     sub.add_parser("stop")
-    sub.add_parser("estop", help="emergency_stop + stop, no confirmation prompt")
+    sub.add_parser("estop", help="emergency_stop + stop, no countdown")
     pr = sub.add_parser("run"); pr.add_argument("motion")
     pr.add_argument("--settle", type=float, default=5.0, help="seconds to let the policy balance before playing")
-    pr.add_argument("--stop-after", action="store_true")
+    pr.add_argument("--keep-running", action="store_true", help="leave SONIC running after playback instead of stopping")
     args = p.parse_args()
     try:
         return asyncio.run(amain(args))

@@ -93,7 +93,7 @@ The app maps its motion names onto these numbers: `tap`→0, `shake`→1, `slap`
 |---|---|
 | model load (E2B, GPU, cached) | under 10 s |
 | one Gemma call (one image) | 3.5 to 5.5 s |
-| one Gemma call (last 5 frames, the current default for watching) | 8 to 13 s |
+| one Gemma call (last 5 frames, with `-e images 5`) | 8 to 13 s |
 | slouch confirmed (2 ratings in a row) | about 10 to 15 s |
 | one walking step in Gemma mode (Gemma + sim clip + 0.7 s settle) | about 17 s |
 | app memory with E2B on GPU | about 2.2 GB |

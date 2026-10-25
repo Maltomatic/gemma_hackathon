@@ -18,7 +18,7 @@ import java.util.concurrent.Executors
 
 data class Settings(
     val orinUrl: String = "192.168.7.23:5555",
-    val imagesPerCall: Int = 5,
+    val imagesPerCall: Int = 1,
     val voteWindow: Int = 2,
     val voteThreshold: Int = 2,
     val ttsDelayMs: Long = 0,
